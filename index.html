@@ -1,0 +1,1389 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>커스텀 2단 룰렛 | 미션 풀 & 클래식 자유 룰렛</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Noto Sans KR & Black Han Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Inter:wght@400;600;700;800&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Noto Sans KR"', 'Inter', 'sans-serif'],
+                        display: ['"Black Han Sans"', '"Noto Sans KR"', 'sans-serif'],
+                    },
+                    colors: {
+                        darkBg: '#090D16',
+                        cardBg: '#111827',
+                        cardBorder: '#1F2937',
+                        neonPink: '#FF2A85',
+                        neonBlue: '#00D4FF',
+                        neonEmerald: '#10B981',
+                        neonAmber: '#F59E0B',
+                        neonPurple: '#8B5CF6'
+                    },
+                    animation: {
+                        'pop-in': 'popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+                    },
+                    keyframes: {
+                        popIn: {
+                            '0%': { transform: 'scale(0.8)', opacity: '0' },
+                            '100%': { transform: 'scale(1)', opacity: '1' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #090D16;
+            background-image: 
+                radial-gradient(at 10% 0%, rgba(255, 42, 133, 0.12) 0px, transparent 45%),
+                radial-gradient(at 90% 0%, rgba(0, 212, 255, 0.12) 0px, transparent 45%),
+                radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.08) 0px, transparent 50%);
+            color: #F8FAFC;
+            overflow-x: hidden;
+        }
+
+        /* 커스텀 스크롤바 */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #090D16;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+
+        /* 숫자 인풋 기본 스피너 제거 */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+
+        /* 룰렛 글로우 효과 */
+        .wheel-glow-1 {
+            box-shadow: 0 0 40px rgba(255, 42, 133, 0.22), inset 0 0 24px rgba(0, 0, 0, 0.65);
+        }
+        .wheel-glow-2 {
+            box-shadow: 0 0 40px rgba(0, 212, 255, 0.22), inset 0 0 24px rgba(0, 0, 0, 0.65);
+        }
+
+        /* 상단 핀 틱 애니메이션 */
+        @keyframes pinBounce {
+            0% { transform: translateX(-50%) rotate(0deg); }
+            35% { transform: translateX(-50%) rotate(-26deg); }
+            100% { transform: translateX(-50%) rotate(0deg); }
+        }
+        .pin-tick {
+            animation: pinBounce 0.11s ease-out;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between antialiased selection:bg-neonPink selection:text-white">
+
+    <!-- 상단 네비게이션 헤더 -->
+    <header class="sticky top-0 z-30 backdrop-blur-md bg-[#090D16]/85 border-b border-slate-800/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-neonPink via-neonPurple to-neonBlue flex items-center justify-center shadow-lg shadow-neonPink/25">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                </div>
+                <h1 class="text-lg sm:text-2xl font-black tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">
+                    커스텀 2단 룰렛
+                </h1>
+                <span class="hidden md:inline-block px-2.5 py-0.5 text-xs font-semibold rounded-full bg-slate-800/90 text-slate-300 border border-slate-700">
+                    1번: 카테고리 통합 풀 • 2번: 클래식 자유 룰렛
+                </span>
+            </div>
+
+            <div class="flex items-center gap-2 sm:gap-3">
+                <!-- 효과음 토글 버튼 -->
+                <button id="soundToggleBtn" type="button" class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm font-bold border border-slate-700 transition active:scale-95">
+                    <span id="soundIconOn">
+                        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg>
+                    </span>
+                    <span id="soundIconOff" class="hidden">
+                        <svg class="w-4 h-4 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"></path></svg>
+                    </span>
+                    <span class="hidden sm:inline" id="soundLabel">효과음 ON</span>
+                </button>
+
+                <!-- 전체 초기화 버튼 -->
+                <button id="resetAllBtn" type="button" class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs sm:text-sm font-bold border border-rose-500/30 transition active:scale-95">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    <span>전체 초기화</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 토스트 알림 컨테이너 -->
+    <div id="toastContainer" class="fixed top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none flex flex-col items-center gap-2 w-full max-w-md px-4"></div>
+
+    <!-- 메인 컨텐츠 -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-8">
+        
+        <!-- 2단 룰렛 그리드 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 items-start">
+
+            <!-- ================= 1번 룰렛: 카테고리별 개별 항목 통합 룰렛 ================= -->
+            <section class="bg-cardBg/95 backdrop-blur-sm border border-cardBorder rounded-3xl p-5 sm:p-7 shadow-2xl relative overflow-hidden">
+                <!-- 상단 컬러 라인 -->
+                <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#FF2A85] via-[#00D4FF] to-[#10B981]"></div>
+
+                <!-- 카드 헤더 -->
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    <div class="flex items-center gap-2.5">
+                        <span class="px-3 py-1 rounded-lg bg-neonPink/20 text-neonPink font-extrabold text-xs tracking-wider border border-neonPink/30">
+                            1번 룰렛
+                        </span>
+                        <h2 class="text-lg sm:text-xl font-extrabold text-white">개별 항목 통합 룰렛</h2>
+                    </div>
+                    <span id="wheel1CountBadge" class="px-3 py-1 rounded-full bg-slate-800 text-neonPink text-xs font-extrabold border border-slate-700">
+                        남은 항목: 125 / 125
+                    </span>
+                </div>
+
+                <!-- 현재 화살표 아래 항목 실시간 티커 -->
+                <div class="flex items-center justify-center mb-2">
+                    <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-slate-900/90 border border-slate-700/90 shadow-inner">
+                        <span class="w-2 h-2 rounded-full bg-neonPink animate-pulse"></span>
+                        <span class="text-[11px] font-semibold text-slate-400">현재 포인터:</span>
+                        <span id="liveTicker1" class="text-xs sm:text-sm font-black text-white min-w-[44px] text-center">-</span>
+                    </div>
+                </div>
+
+                <!-- 1번 룰렛 원판 영역 -->
+                <div class="relative flex flex-col items-center justify-center my-3">
+                    <!-- 상단 고정 화살표 핀 -->
+                    <div id="pin1" class="absolute -top-2.5 left-1/2 -translate-x-1/2 z-20 drop-shadow-[0_4px_10px_rgba(0,0,0,0.85)] origin-top">
+                        <svg width="36" height="42" viewBox="0 0 36 42" fill="none">
+                            <path d="M18 42L3.27757 16.5C-0.569221 9.83333 4.24203 1.5 11.9391 1.5H24.0609C31.758 1.5 36.5692 9.83333 32.7224 16.5L18 42Z" fill="#FF2A85" stroke="#FFFFFF" stroke-width="2.5"/>
+                            <circle cx="18" cy="14" r="4.5" fill="#FFFFFF"/>
+                        </svg>
+                    </div>
+
+                    <!-- 캔버스 래퍼 -->
+                    <div class="relative w-full max-w-[310px] sm:max-w-[345px] aspect-square rounded-full p-2 bg-gradient-to-b from-slate-700 to-slate-900 wheel-glow-1">
+                        <canvas id="wheelCanvas1" class="w-full h-full rounded-full block cursor-pointer"></canvas>
+                        <!-- 중앙 돌리기 버튼 -->
+                        <button id="centerSpinBtn1" type="button" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-slate-900 border-4 border-white shadow-2xl flex flex-col items-center justify-center text-white font-black text-xs sm:text-sm hover:scale-105 active:scale-95 transition z-10">
+                            <span class="text-neonPink text-[10px] tracking-widest">SPIN</span>
+                            <span>돌리기</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 1번 룰렛 당첨 결과 표시 박스 -->
+                <div id="resultBanner1" class="mb-4 p-4 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-3 transition-all">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div id="resultBadge1" class="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-slate-400 font-black text-sm shrink-0">
+                            ?
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-xs text-slate-400 font-medium">1번 룰렛 당첨 결과</p>
+                            <p id="resultText1" class="text-sm sm:text-base font-extrabold text-slate-200 truncate">
+                                원판을 클릭하거나 돌리기를 눌러주세요!
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <div class="px-4 py-1.5 rounded-2xl bg-slate-800/95 border border-slate-700 min-w-[90px] text-center">
+                            <span id="winnerChip1" class="font-display text-xl sm:text-2xl text-slate-500 tracking-wide">-</span>
+                        </div>
+                        <button id="manualExclude1Btn" type="button" disabled title="방금 당첨된 항목 삭제" class="px-2.5 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 disabled:opacity-35 disabled:pointer-events-none text-rose-400 text-xs font-bold border border-rose-500/30 transition active:scale-95">
+                            항목 삭제
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 당첨 항목 자동 삭제 (중복 방지) 옵션 및 제외 목록 바 -->
+                <div class="mb-4 p-3 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-2.5">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+                            <input type="checkbox" id="excludeWinner1Checkbox" checked class="w-4 h-4 accent-neonPink rounded cursor-pointer">
+                            <span class="text-xs font-extrabold text-white">당첨 항목 자동 삭제 (중복 방지)</span>
+                        </label>
+                        <div class="flex items-center gap-2">
+                            <span id="excludedCount1" class="text-[11px] font-bold text-rose-400">삭제됨: 0개</span>
+                            <button type="button" id="restoreExcluded1Btn" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-neonPink border border-slate-700 transition active:scale-95">
+                                모두 복원
+                            </button>
+                        </div>
+                    </div>
+                    <!-- 삭제(제외)된 항목 칩 리스트 (개별 클릭 복원 가능) -->
+                    <div id="excludedList1" class="flex flex-wrap gap-1.5 max-h-[68px] overflow-y-auto pt-1 border-t border-slate-800/80 hidden">
+                    </div>
+                </div>
+
+                <!-- 4개 카테고리 접두사 및 숫자 범위 설정 -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between text-[11px] text-slate-400 px-1">
+                        <span class="font-semibold">사용 / 카테고리 / 접두사</span>
+                        <span>시작 ~ 끝 번호 범위</span>
+                    </div>
+
+                    <!-- 0: 피지컬 (피1 ~ 피50) -->
+                    <div class="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 p-2.5 rounded-2xl bg-slate-900/75 border border-slate-800/90 hover:border-slate-700 transition">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="catActive0" checked class="w-4 h-4 accent-[#FF2A85] rounded cursor-pointer">
+                            <span class="w-2.5 h-2.5 rounded-full bg-[#FF2A85] shadow-[0_0_8px_#FF2A85] shrink-0"></span>
+                            <span class="font-bold text-xs sm:text-sm text-white w-11">피지컬</span>
+                            <input type="text" id="catPrefix0" value="피" maxlength="6" title="항목 접두사" class="w-12 px-1.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-center text-xs font-extrabold text-[#FF2A85] focus:outline-none focus:border-[#FF2A85]">
+                        </div>
+                        <div class="flex items-center gap-1.5 ml-auto">
+                            <input type="number" id="catMin0" value="1" class="w-14 sm:w-16 px-2 py-1 rounded-xl bg-slate-800 border border-slate-700 text-center text-xs sm:text-sm font-bold text-white focus:outline-none focus:border-[#FF2A85] transition">
+                            <span class="text-slate-500 font-bold text-xs">~</span>
+                            <input type="number" id="catMax0" value="50" class="w-14 sm:w-16 px-2 py-1 rounded-xl bg-slate-800 border border-slate-700 text-center text-xs sm:text-sm font-bold text-white focus:outline-none focus:border-[#FF2A85] transition">
+                        </div>
+                    </div>
+
+                    <!-- 1: 암기 (암1 ~ 암25) -->
+                    <div class="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 p-2.5 rounded-2xl bg-slate-900/75 border border-slate-800/90 hover:border-slate-700 transition">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="catActive1" checked class="w-4 h-4 accent-[#00D4FF] rounded cursor-pointer">
+                            <span class="w-2.5 h-2.5 rounded-full bg-[#00D4FF] shadow-[0_0_8px_#00D4FF] shrink-0"></span>
+                            <span class="font-bold text-xs sm:text-sm text-white w-11">암기</span>
+                            <input type="text" id="catPrefix1" value="암" maxlength="6" title="항목 접두사" class="w-12 px-1.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-center text-xs font-extrabold text-[#00D4FF] focus:outline-none focus:border-[#00D4FF]">
+                        </div>
+                        <div class="flex items-center gap-1.5 ml-auto">
+                            <input type="number" id="catMin1" value="1" class="w-14 sm:w-16 px-2 py-1 rounded-xl bg-slate-800 border border-slate-700 text-center text-xs sm:text-sm font-bold text-white focus:outline-none focus:border-[#00D4FF] transition">
+                            <span class="text-slate-500 font-bold text-xs">~</span>
+                            <input type="number" id="catMax1" value="25" class="w-14 sm:w-16 px-2 py-1 rounded-xl bg-slate-800 border border-slate-700 text-center text-xs sm:text-sm font-bold text-white focus:outline-none focus:border-[#00D4FF] transition">
+                        </div>
+                    </div>
+
+                    <!-- 2: 2p (2p1 ~ 2p20) -->
+                    <div class="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 p-2.5 rounded-2xl bg-slate-900/75 border border-slate-800/90 hover:border-slate-700 transition">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="catActive2" checked class="w-4 h-4 accent-[#10B981] rounded cursor-pointer">
+                            <span class="w-2.5 h-2.5 rounded-full bg-[#10B981] shadow-[0_0_8px_#10B981] shrink-0"></span>
+                            <span class="font-bold text-xs sm:text-sm text-white w-11">2p</span>
+                            <input type="text" id="catPrefix2" value="2p" maxlength="6" title="항목 접두사" class="w-12 px-1.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-center text-xs font-extrabold text-[#10B981] focus:outline-none focus:border-[#10B981]">
+                        </div>
+                        <div class="flex items-center gap-1.5 ml-auto">
+                            <input type="number" id="catMin2" value="1" class="w-14 sm:w-16 px-2 py-1 rounded-xl bg-slate-800 border border-slate-700 text-center text-xs sm:text-sm font-bold text-white focus:outline-none focus:border-[#10B981] transition">
+                            <span class="text-slate-500 font-bold text-xs">~</span>
+                            <input type="number" id="catMax2" value="20" class="w-14 sm:w-16 px-2 py-1 rounded-xl bg-slate-800 border border-slate-700 text-center text-xs sm:text-sm font-bold text-white focus:outline-none focus:border-[#10B981] transition">
+                        </div>
+                    </div>
+
+                    <!-- 3: 연타 (연1 ~ 연30) -->
+                    <div class="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 p-2.5 rounded-2xl bg-slate-900/75 border border-slate-800/90 hover:border-slate-700 transition">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="catActive3" checked class="w-4 h-4 accent-[#F59E0B] rounded cursor-pointer">
+                            <span class="w-2.5 h-2.5 rounded-full bg-[#F59E0B] shadow-[0_0_8px_#F59E0B] shrink-0"></span>
+                            <span class="font-bold text-xs sm:text-sm text-white w-11">연타</span>
+                            <input type="text" id="catPrefix3" value="연" maxlength="6" title="항목 접두사" class="w-12 px-1.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-center text-xs font-extrabold text-[#F59E0B] focus:outline-none focus:border-[#F59E0B]">
+                        </div>
+                        <div class="flex items-center gap-1.5 ml-auto">
+                            <input type="number" id="catMin3" value="1" class="w-14 sm:w-16 px-2 py-1 rounded-xl bg-slate-800 border border-slate-700 text-center text-xs sm:text-sm font-bold text-white focus:outline-none focus:border-[#F59E0B] transition">
+                            <span class="text-slate-500 font-bold text-xs">~</span>
+                            <input type="number" id="catMax3" value="30" class="w-14 sm:w-16 px-2 py-1 rounded-xl bg-slate-800 border border-slate-700 text-center text-xs sm:text-sm font-bold text-white focus:outline-none focus:border-[#F59E0B] transition">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= 2번 룰렛: 클래식 자유 항목 룰렛 ================= -->
+            <section class="bg-cardBg/95 backdrop-blur-sm border border-cardBorder rounded-3xl p-5 sm:p-7 shadow-2xl relative overflow-hidden">
+                <!-- 상단 컬러 라인 -->
+                <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#00D4FF] via-[#8B5CF6] to-[#FF2A85]"></div>
+
+                <!-- 카드 헤더 -->
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    <div class="flex items-center gap-2.5">
+                        <span class="px-3 py-1 rounded-lg bg-neonBlue/20 text-neonBlue font-extrabold text-xs tracking-wider border border-neonBlue/30">
+                            2번 룰렛
+                        </span>
+                        <h2 class="text-lg sm:text-xl font-extrabold text-white">클래식 자유 룰렛</h2>
+                    </div>
+                    <span id="wheel2CountBadge" class="px-3 py-1 rounded-full bg-slate-800 text-neonBlue text-xs font-extrabold border border-slate-700">
+                        총 6개 항목
+                    </span>
+                </div>
+
+                <!-- 현재 화살표 아래 항목 실시간 티커 -->
+                <div class="flex items-center justify-center mb-2">
+                    <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-slate-900/90 border border-slate-700/90 shadow-inner">
+                        <span class="w-2 h-2 rounded-full bg-neonBlue animate-pulse"></span>
+                        <span class="text-[11px] font-semibold text-slate-400">현재 포인터:</span>
+                        <span id="liveTicker2" class="text-xs sm:text-sm font-black text-white min-w-[44px] text-center">-</span>
+                    </div>
+                </div>
+
+                <!-- 2번 룰렛 원판 영역 -->
+                <div class="relative flex flex-col items-center justify-center my-3">
+                    <!-- 상단 고정 화살표 핀 -->
+                    <div id="pin2" class="absolute -top-2.5 left-1/2 -translate-x-1/2 z-20 drop-shadow-[0_4px_10px_rgba(0,0,0,0.85)] origin-top">
+                        <svg width="36" height="42" viewBox="0 0 36 42" fill="none">
+                            <path d="M18 42L3.27757 16.5C-0.569221 9.83333 4.24203 1.5 11.9391 1.5H24.0609C31.758 1.5 36.5692 9.83333 32.7224 16.5L18 42Z" fill="#00D4FF" stroke="#FFFFFF" stroke-width="2.5"/>
+                            <circle cx="18" cy="14" r="4.5" fill="#FFFFFF"/>
+                        </svg>
+                    </div>
+
+                    <!-- 캔버스 래퍼 -->
+                    <div class="relative w-full max-w-[310px] sm:max-w-[345px] aspect-square rounded-full p-2 bg-gradient-to-b from-slate-700 to-slate-900 wheel-glow-2">
+                        <canvas id="wheelCanvas2" class="w-full h-full rounded-full block cursor-pointer"></canvas>
+                        <!-- 중앙 돌리기 버튼 -->
+                        <button id="centerSpinBtn2" type="button" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-slate-900 border-4 border-white shadow-2xl flex flex-col items-center justify-center text-white font-black text-xs sm:text-sm hover:scale-105 active:scale-95 transition z-10">
+                            <span class="text-neonBlue text-[10px] tracking-widest">SPIN</span>
+                            <span>돌리기</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2번 룰렛 당첨 결과 표시 박스 -->
+                <div id="resultBanner2" class="mb-4 p-4 rounded-2xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-3 transition-all">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div id="resultBadge2" class="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-slate-400 font-black text-sm shrink-0">
+                            ?
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-xs text-slate-400 font-medium">2번 룰렛 당첨 결과</p>
+                            <p id="resultText2" class="text-sm sm:text-base font-extrabold text-slate-200 truncate">
+                                원하는 수치를 넣고 룰렛을 돌려주세요!
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <div class="px-4 py-1.5 rounded-2xl bg-slate-800/95 border border-slate-700 min-w-[90px] text-center">
+                            <span id="winnerChip2" class="font-display text-xl sm:text-2xl text-slate-500 tracking-wide">-</span>
+                        </div>
+                        <button id="removeWinner2Btn" type="button" disabled title="방금 당첨된 항목 제거" class="px-2.5 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 disabled:opacity-35 disabled:pointer-events-none text-rose-400 text-xs font-bold border border-rose-500/30 transition active:scale-95">
+                            당첨 제거
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2번 룰렛 항목 입력 및 관리 컨트롤 -->
+                <div class="space-y-3">
+                    <!-- 항목 추가 입력 폼 -->
+                    <div class="flex items-center gap-2">
+                        <input id="wheel2Input" type="text" placeholder="수치나 항목 입력 (쉼표로 여러 개 추가 가능 예: 10, 20, 30)" class="flex-1 min-w-0 px-3.5 py-2.5 rounded-2xl bg-slate-900/90 border border-slate-700 text-xs sm:text-sm font-bold text-white placeholder-slate-500 focus:outline-none focus:border-neonBlue transition">
+                        <button id="wheel2AddBtn" type="button" class="px-4 py-2.5 rounded-2xl bg-neonBlue hover:bg-sky-400 text-slate-950 font-black text-xs sm:text-sm transition active:scale-95 shrink-0 shadow-lg shadow-neonBlue/20">
+                            + 추가
+                        </button>
+                    </div>
+
+                    <!-- 빠른 프리셋 & 전체 비우기 버튼 -->
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <span class="text-[11px] font-semibold text-slate-400 mr-1">빠른 채우기:</span>
+                            <button type="button" data-preset="1to5" class="preset-btn px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-slate-200 border border-slate-700 transition">1~5</button>
+                            <button type="button" data-preset="1to10" class="preset-btn px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-slate-200 border border-slate-700 transition">1~10</button>
+                            <button type="button" data-preset="dice" class="preset-btn px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-slate-200 border border-slate-700 transition">10~60 (10단위)</button>
+                            <button type="button" data-preset="ox" class="preset-btn px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-slate-200 border border-slate-700 transition">통과 / 꽝</button>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label class="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                                <input type="checkbox" id="excludeWinner2Checkbox" class="w-3.5 h-3.5 accent-neonBlue rounded cursor-pointer">
+                                <span class="text-[11px] font-bold text-slate-300">당첨 자동 삭제</span>
+                            </label>
+                            <button type="button" id="clearWheel2Btn" class="px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-rose-500/20 text-[11px] font-bold text-slate-400 hover:text-rose-400 border border-slate-700/80 transition">
+                                비우기
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 등록된 항목 태그 리스트 -->
+                    <div class="p-3 rounded-2xl bg-slate-900/75 border border-slate-800 min-h-[112px] max-h-[155px] overflow-y-auto">
+                        <div id="wheel2TagList" class="flex flex-wrap gap-2">
+                            <!-- 자바스크립트로 태그 렌더링 -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- ================= 하단 최근 추첨 히스토리 패널 ================= -->
+        <section class="bg-cardBg/90 backdrop-blur-sm border border-cardBorder rounded-3xl p-5 sm:p-6 shadow-xl">
+            <div class="flex items-center justify-between gap-2 mb-4">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-amber-400">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-base sm:text-lg font-extrabold text-white">최근 추첨 기록</h3>
+                        <p class="text-xs text-slate-400">1번 룰렛과 2번 룰렛에서 당첨된 내역이 실시간으로 기록됩니다.</p>
+                    </div>
+                </div>
+                <button id="clearHistoryBtn" type="button" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 border border-slate-700 transition active:scale-95">
+                    기록 비우기
+                </button>
+            </div>
+
+            <div id="historyList" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                <div class="col-span-full py-6 text-center text-xs sm:text-sm text-slate-500 bg-slate-900/50 rounded-2xl border border-slate-800/80">
+                    아직 추첨 기록이 없습니다. 룰렛을 돌려 첫 결과를 뽑아보세요!
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- 푸터 -->
+    <footer class="border-t border-slate-800/70 py-4 text-center text-xs text-slate-500">
+        커스텀 2단 룰렛 • 1번 개별 항목 통합 풀 & 2번 클래식 자유 룰렛
+    </footer>
+
+    <script>
+        /**
+         * ============================================================================
+         * 1. 사운드 매니저 (Web Audio API 기반 효과음 합성 - 외부 파일 불필요)
+         * ============================================================================
+         */
+        class SoundManager {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContext) {
+                        this.ctx = new AudioContext();
+                    }
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playTick(pitchMultiplier = 1) {
+                if (!this.enabled) return;
+                try {
+                    this.init();
+                    if (!this.ctx) return;
+                    const now = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(650 * pitchMultiplier, now);
+                    osc.frequency.exponentialRampToValueAtTime(180, now + 0.035);
+
+                    gain.gain.setValueAtTime(0.14, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+
+                    osc.start(now);
+                    osc.stop(now + 0.038);
+                } catch (e) {
+                    // 오디오 차단 예외 무시
+                }
+            }
+
+            playWin() {
+                if (!this.enabled) return;
+                try {
+                    this.init();
+                    if (!this.ctx) return;
+                    const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+                    notes.forEach((freq, idx) => {
+                        const now = this.ctx.currentTime + idx * 0.085;
+                        const osc = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(freq, now);
+
+                        gain.gain.setValueAtTime(0.001, now);
+                        gain.gain.linearRampToValueAtTime(0.22, now + 0.02);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+
+                        osc.start(now);
+                        osc.stop(now + 0.48);
+                    });
+                } catch (e) {
+                    // 오디오 차단 예외 무시
+                }
+            }
+        }
+
+        const sound = new SoundManager();
+
+        /**
+         * ============================================================================
+         * 2. 토스트 알림 유틸리티 (alert 대체)
+         * ============================================================================
+         */
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            
+            const styles = {
+                info: 'bg-slate-800/95 border-slate-600 text-white',
+                warning: 'bg-amber-950/95 border-amber-500/60 text-amber-200',
+                success: 'bg-emerald-950/95 border-emerald-500/60 text-emerald-200',
+                danger: 'bg-rose-950/95 border-rose-500/60 text-rose-200'
+            };
+
+            toast.className = `px-4 py-2.5 rounded-2xl border shadow-2xl text-xs sm:text-sm font-bold backdrop-blur-md animate-pop-in ${styles[type] || styles.info}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(-8px)';
+                toast.style.transition = 'all 0.25s ease';
+                setTimeout(() => toast.remove(), 260);
+            }, 2400);
+        }
+
+        /**
+         * ============================================================================
+         * 3. 애플리케이션 상태 관리
+         * ============================================================================
+         */
+        const DEFAULT_CATEGORIES = [
+            { id: 0, name: '피지컬', prefix: '피', min: 1, max: 50, active: true, color: '#FF2A85', altColor: '#E11D74' },
+            { id: 1, name: '암기',   prefix: '암', min: 1, max: 25, active: true, color: '#00D4FF', altColor: '#0284C7' },
+            { id: 2, name: '2p',     prefix: '2p', min: 1, max: 20, active: true, color: '#10B981', altColor: '#059669' },
+            { id: 3, name: '연타',   prefix: '연', min: 1, max: 30, active: true, color: '#F59E0B', altColor: '#D97706' }
+        ];
+
+        const CLASSIC_PALETTE = [
+            '#FF2A85', '#00D4FF', '#10B981', '#F59E0B', '#8B5CF6',
+            '#EC4899', '#3B82F6', '#14B8A6', '#F97316', '#6366F1'
+        ];
+
+        const state = {
+            categories: JSON.parse(JSON.stringify(DEFAULT_CATEGORIES)),
+            excludedWheel1: new Map(), // key -> { label, color }
+            wheel1Items: [],
+            wheel1TotalBaseCount: 0,
+            wheel1Angle: 0,
+            wheel1Spinning: false,
+            wheel1LastIndex: -1,
+            wheel1LastWinner: null,
+
+            wheel2Items: ['10', '20', '30', '40', '50', '60'],
+            wheel2Angle: 0,
+            wheel2Spinning: false,
+            wheel2LastIndex: -1,
+            wheel2LastWinnerIndex: -1,
+
+            history: []
+        };
+
+        /**
+         * ============================================================================
+         * 4. 1번 룰렛: 카테고리별 개별 항목 생성 및 렌더링
+         * ============================================================================
+         */
+        function buildWheel1Items() {
+            const items = [];
+            let totalBaseCount = 0;
+
+            state.categories.forEach((cat) => {
+                if (!cat.active) return;
+                const start = Math.min(cat.min, cat.max);
+                const end = Math.max(cat.min, cat.max);
+                // 과도한 브라우저 부하 방지를 위해 카테고리당 최대 300개 제한
+                const safeEnd = Math.min(end, start + 299);
+                const prefix = (cat.prefix || '').trim();
+
+                let localIdx = 0;
+                for (let n = start; n <= safeEnd; n++) {
+                    totalBaseCount++;
+                    const label = `${prefix}${n}`;
+                    const uniqueKey = `${cat.id}:${label}`;
+                    if (!state.excludedWheel1.has(uniqueKey)) {
+                        items.push({
+                            key: uniqueKey,
+                            label: label,
+                            categoryName: cat.name,
+                            color: localIdx % 2 === 0 ? cat.color : cat.altColor
+                        });
+                        localIdx++;
+                    }
+                }
+            });
+
+            state.wheel1Items = items;
+            state.wheel1TotalBaseCount = totalBaseCount;
+            document.getElementById('wheel1CountBadge').textContent = `남은 항목: ${items.length} / ${totalBaseCount}`;
+            document.getElementById('excludedCount1').textContent = `삭제됨: ${state.excludedWheel1.size}개`;
+            renderExcludedList1();
+            updateWheel1PointerInfo();
+            drawWheel1();
+        }
+
+        function renderExcludedList1() {
+            const listEl = document.getElementById('excludedList1');
+            if (!listEl) return;
+
+            if (state.excludedWheel1.size === 0) {
+                listEl.classList.add('hidden');
+                listEl.innerHTML = '';
+                return;
+            }
+
+            listEl.classList.remove('hidden');
+            const chips = [];
+            state.excludedWheel1.forEach((info, key) => {
+                chips.push(`
+                    <button type="button" data-restore-key="${escapeHtml(key)}" title="클릭하여 다시 룰렛에 복원"
+                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800/90 hover:bg-slate-700 border border-slate-700 text-[11px] font-bold text-slate-300 line-through decoration-rose-400 transition">
+                        <span class="w-1.5 h-1.5 rounded-full" style="background-color: ${info.color}"></span>
+                        <span>${escapeHtml(info.label)}</span>
+                        <span class="text-emerald-400 no-underline ml-0.5">↺</span>
+                    </button>
+                `);
+            });
+            listEl.innerHTML = chips.join('');
+
+            listEl.querySelectorAll('[data-restore-key]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if (state.wheel1Spinning) return;
+                    const key = btn.getAttribute('data-restore-key');
+                    const info = state.excludedWheel1.get(key);
+                    state.excludedWheel1.delete(key);
+                    buildWheel1Items();
+                    if (info) {
+                        showToast(`'${info.label}' 항목이 다시 룰렛에 복원되었습니다.`, 'success');
+                    }
+                });
+            });
+        }
+
+        function getSliceIndexAtTop(angle, totalSlices) {
+            if (totalSlices <= 0) return -1;
+            const arc = (Math.PI * 2) / totalSlices;
+            // 상단 포인터 위치는 캔버스 기준 -PI/2 (270도)
+            const pointerAngle = (Math.PI * 1.5 - (angle % (Math.PI * 2)) + Math.PI * 4) % (Math.PI * 2);
+            return Math.floor(pointerAngle / arc) % totalSlices;
+        }
+
+        function updateWheel1PointerInfo() {
+            const total = state.wheel1Items.length;
+            const ticker = document.getElementById('liveTicker1');
+            if (total === 0) {
+                ticker.textContent = '항목 없음';
+                return;
+            }
+            const idx = getSliceIndexAtTop(state.wheel1Angle, total);
+            const currentItem = state.wheel1Items[idx];
+            if (currentItem) {
+                ticker.textContent = currentItem.label;
+                ticker.style.color = currentItem.color;
+            }
+        }
+
+        function drawWheel1() {
+            const canvas = document.getElementById('wheelCanvas1');
+            if (!canvas) return;
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            if (rect.width === 0) return;
+
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+
+            const ctx = canvas.getContext('2d');
+            ctx.scale(dpr, dpr);
+
+            const size = rect.width;
+            const cx = size / 2;
+            const cy = size / 2;
+            const radius = size / 2 - 4;
+
+            ctx.clearRect(0, 0, size, size);
+
+            const items = state.wheel1Items;
+            const total = items.length;
+
+            if (total === 0) {
+                ctx.beginPath();
+                ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#1E293B';
+                ctx.fill();
+                ctx.fillStyle = '#94A3B8';
+                ctx.font = 'bold 14px "Noto Sans KR", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('활성화된 항목이 없습니다', cx, cy - 38);
+                return;
+            }
+
+            const arc = (Math.PI * 2) / total;
+
+            // 칸 개수에 따른 동적 폰트 크기 & 구분선 두께 계산
+            let fontSize = 14;
+            if (total > 150) fontSize = 6.5;
+            else if (total > 100) fontSize = 7.5;
+            else if (total > 70) fontSize = 9;
+            else if (total > 40) fontSize = 10.5;
+            else if (total > 20) fontSize = 12;
+
+            const showStroke = total <= 180;
+
+            for (let i = 0; i < total; i++) {
+                const startAngle = state.wheel1Angle + i * arc;
+                const endAngle = startAngle + arc;
+
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.arc(cx, cy, radius, startAngle, endAngle);
+                ctx.closePath();
+
+                ctx.fillStyle = items[i].color;
+                ctx.fill();
+
+                if (showStroke) {
+                    ctx.strokeStyle = 'rgba(9, 13, 22, 0.45)';
+                    ctx.lineWidth = total > 80 ? 0.6 : 1.2;
+                    ctx.stroke();
+                }
+
+                // 방사형 텍스트 라벨 렌더링
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.rotate(startAngle + arc / 2);
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = `800 ${fontSize}px "Noto Sans KR", sans-serif`;
+
+                // 가독성 향상 그림자
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
+                ctx.shadowBlur = 2;
+
+                const textRadius = radius - (total > 80 ? 8 : 14);
+                ctx.fillText(items[i].label, textRadius, 0);
+                ctx.restore();
+            }
+
+            // 외곽 테두리 링
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
+
+        function spinWheel1() {
+            if (state.wheel1Spinning) return;
+            if (state.wheel1Items.length === 0) {
+                showToast('1번 룰렛에 돌릴 항목이 없습니다. 카테고리 범위나 제외 목록을 확인해주세요!', 'warning');
+                return;
+            }
+
+            sound.init();
+            state.wheel1Spinning = true;
+            document.getElementById('centerSpinBtn1').disabled = true;
+
+            const startAngle = state.wheel1Angle;
+            const extraSpins = 6 + Math.random() * 4; // 6~10바퀴
+            const randomOffset = Math.random() * Math.PI * 2;
+            const targetAngle = startAngle + extraSpins * Math.PI * 2 + randomOffset;
+            const duration = 4200 + Math.random() * 800; // 4.2 ~ 5.0초
+            const startTime = performance.now();
+
+            const pinEl = document.getElementById('pin1');
+
+            function animate(now) {
+                const elapsed = now - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                // 부드러운 4제곱 감속 (Ease-out Quart)
+                const ease = 1 - Math.pow(1 - progress, 4);
+
+                state.wheel1Angle = startAngle + (targetAngle - startAngle) * ease;
+                drawWheel1();
+                updateWheel1PointerInfo();
+
+                // 칸 경계 통과 시 틱 사운드 및 핀 애니메이션
+                const currentIdx = getSliceIndexAtTop(state.wheel1Angle, state.wheel1Items.length);
+                if (currentIdx !== state.wheel1LastIndex) {
+                    state.wheel1LastIndex = currentIdx;
+                    sound.playTick(1.05);
+                    pinEl.classList.remove('pin-tick');
+                    void pinEl.offsetWidth;
+                    pinEl.classList.add('pin-tick');
+                }
+
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    state.wheel1Spinning = false;
+                    document.getElementById('centerSpinBtn1').disabled = false;
+                    onWheel1Finish();
+                }
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        function onWheel1Finish() {
+            const total = state.wheel1Items.length;
+            if (total === 0) return;
+
+            const winIdx = getSliceIndexAtTop(state.wheel1Angle, total);
+            const winner = state.wheel1Items[winIdx];
+            if (!winner) return;
+
+            state.wheel1LastWinner = winner;
+            sound.playWin();
+
+            // 결과 배너 업데이트
+            const badge = document.getElementById('resultBadge1');
+            const text = document.getElementById('resultText1');
+            const chip = document.getElementById('winnerChip1');
+            const banner = document.getElementById('resultBanner1');
+            const manualExcludeBtn = document.getElementById('manualExclude1Btn');
+
+            badge.textContent = winner.categoryName;
+            badge.style.backgroundColor = winner.color;
+            badge.style.color = '#FFFFFF';
+            badge.className = 'px-2.5 h-10 rounded-xl flex items-center justify-center font-black text-xs shrink-0 shadow-lg';
+
+            text.textContent = `[${winner.categoryName}] 카테고리 당첨!`;
+            chip.textContent = winner.label;
+            chip.style.color = winner.color;
+
+            banner.classList.remove('animate-pop-in');
+            void banner.offsetWidth;
+            banner.classList.add('animate-pop-in');
+
+            // 기록 추가
+            addHistory('1번 룰렛', `${winner.categoryName} • ${winner.label}`, winner.color);
+
+            // 당첨 항목 자동 삭제(중복 방지) 옵션 처리
+            const excludeCheck = document.getElementById('excludeWinner1Checkbox');
+            if (excludeCheck && excludeCheck.checked) {
+                state.excludedWheel1.set(winner.key, { label: winner.label, color: winner.color });
+                manualExcludeBtn.disabled = true;
+                showToast(`'${winner.label}' 당첨! 중복 방지를 위해 룰렛에서 삭제되었습니다.`, 'info');
+                setTimeout(() => {
+                    buildWheel1Items();
+                }, 450);
+            } else {
+                manualExcludeBtn.disabled = false;
+            }
+        }
+
+        /**
+         * ============================================================================
+         * 5. 2번 룰렛: 클래식 자유 항목 룰렛 로직
+         * ============================================================================
+         */
+        function updateWheel2PointerInfo() {
+            const total = state.wheel2Items.length;
+            const ticker = document.getElementById('liveTicker2');
+            if (total === 0) {
+                ticker.textContent = '항목 없음';
+                return;
+            }
+            const idx = getSliceIndexAtTop(state.wheel2Angle, total);
+            ticker.textContent = state.wheel2Items[idx] || '-';
+            ticker.style.color = CLASSIC_PALETTE[idx % CLASSIC_PALETTE.length];
+        }
+
+        function renderWheel2Tags() {
+            const container = document.getElementById('wheel2TagList');
+            const badge = document.getElementById('wheel2CountBadge');
+            badge.textContent = `총 ${state.wheel2Items.length}개 항목`;
+
+            if (state.wheel2Items.length === 0) {
+                container.innerHTML = `<div class="w-full text-center py-6 text-xs text-slate-500">등록된 항목이 없습니다. 위 입력창에서 항목을 추가해주세요!</div>`;
+                drawWheel2();
+                updateWheel2PointerInfo();
+                return;
+            }
+
+            container.innerHTML = state.wheel2Items.map((item, idx) => {
+                const color = CLASSIC_PALETTE[idx % CLASSIC_PALETTE.length];
+                return `
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-xs font-bold text-white shadow-sm group hover:border-slate-500 transition">
+                        <span class="w-2 h-2 rounded-full shrink-0" style="background-color: ${color}"></span>
+                        <span class="max-w-[120px] truncate">${escapeHtml(item)}</span>
+                        <button type="button" data-remove-idx="${idx}" class="ml-1 text-slate-400 hover:text-rose-400 font-black transition" title="삭제">&times;</button>
+                    </span>
+                `;
+            }).join('');
+
+            container.querySelectorAll('[data-remove-idx]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if (state.wheel2Spinning) return;
+                    const idx = parseInt(btn.getAttribute('data-remove-idx'), 10);
+                    state.wheel2Items.splice(idx, 1);
+                    state.wheel2LastWinnerIndex = -1;
+                    document.getElementById('removeWinner2Btn').disabled = true;
+                    renderWheel2Tags();
+                });
+            });
+
+            drawWheel2();
+            updateWheel2PointerInfo();
+        }
+
+        function drawWheel2() {
+            const canvas = document.getElementById('wheelCanvas2');
+            if (!canvas) return;
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            if (rect.width === 0) return;
+
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+
+            const ctx = canvas.getContext('2d');
+            ctx.scale(dpr, dpr);
+
+            const size = rect.width;
+            const cx = size / 2;
+            const cy = size / 2;
+            const radius = size / 2 - 4;
+
+            ctx.clearRect(0, 0, size, size);
+
+            const items = state.wheel2Items;
+            const total = items.length;
+
+            if (total === 0) {
+                ctx.beginPath();
+                ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#1E293B';
+                ctx.fill();
+                ctx.fillStyle = '#94A3B8';
+                ctx.font = 'bold 14px "Noto Sans KR", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('항목을 추가해주세요', cx, cy - 38);
+                return;
+            }
+
+            const arc = (Math.PI * 2) / total;
+            let fontSize = 16;
+            if (total > 30) fontSize = 10;
+            else if (total > 18) fontSize = 12;
+            else if (total > 10) fontSize = 14;
+
+            for (let i = 0; i < total; i++) {
+                const startAngle = state.wheel2Angle + i * arc;
+                const endAngle = startAngle + arc;
+                const color = CLASSIC_PALETTE[i % CLASSIC_PALETTE.length];
+
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.arc(cx, cy, radius, startAngle, endAngle);
+                ctx.closePath();
+
+                ctx.fillStyle = color;
+                ctx.fill();
+
+                ctx.strokeStyle = 'rgba(9, 13, 22, 0.55)';
+                ctx.lineWidth = 1.8;
+                ctx.stroke();
+
+                // 텍스트 렌더링
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.rotate(startAngle + arc / 2);
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = `800 ${fontSize}px "Noto Sans KR", sans-serif`;
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+                ctx.shadowBlur = 3;
+
+                const label = items[i].length > 10 ? items[i].slice(0, 9) + '…' : items[i];
+                ctx.fillText(label, radius - 18, 0);
+                ctx.restore();
+            }
+
+            // 외곽 테두리 링
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
+
+        function spinWheel2() {
+            if (state.wheel2Spinning) return;
+            if (state.wheel2Items.length === 0) {
+                showToast('2번 룰렛에 항목을 1개 이상 추가해주세요!', 'warning');
+                return;
+            }
+
+            sound.init();
+            state.wheel2Spinning = true;
+            document.getElementById('centerSpinBtn2').disabled = true;
+            document.getElementById('removeWinner2Btn').disabled = true;
+
+            const startAngle = state.wheel2Angle;
+            const extraSpins = 6 + Math.random() * 4;
+            const randomOffset = Math.random() * Math.PI * 2;
+            const targetAngle = startAngle + extraSpins * Math.PI * 2 + randomOffset;
+            const duration = 3800 + Math.random() * 700;
+            const startTime = performance.now();
+
+            const pinEl = document.getElementById('pin2');
+
+            function animate(now) {
+                const elapsed = now - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const ease = 1 - Math.pow(1 - progress, 4);
+
+                state.wheel2Angle = startAngle + (targetAngle - startAngle) * ease;
+                drawWheel2();
+                updateWheel2PointerInfo();
+
+                const currentIdx = getSliceIndexAtTop(state.wheel2Angle, state.wheel2Items.length);
+                if (currentIdx !== state.wheel2LastIndex) {
+                    state.wheel2LastIndex = currentIdx;
+                    sound.playTick(1.2);
+                    pinEl.classList.remove('pin-tick');
+                    void pinEl.offsetWidth;
+                    pinEl.classList.add('pin-tick');
+                }
+
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    state.wheel2Spinning = false;
+                    document.getElementById('centerSpinBtn2').disabled = false;
+                    onWheel2Finish();
+                }
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        function onWheel2Finish() {
+            const total = state.wheel2Items.length;
+            if (total === 0) return;
+
+            const winIdx = getSliceIndexAtTop(state.wheel2Angle, total);
+            const winnerLabel = state.wheel2Items[winIdx];
+            const winColor = CLASSIC_PALETTE[winIdx % CLASSIC_PALETTE.length];
+
+            state.wheel2LastWinnerIndex = winIdx;
+            sound.playWin();
+
+            const badge = document.getElementById('resultBadge2');
+            const text = document.getElementById('resultText2');
+            const chip = document.getElementById('winnerChip2');
+            const banner = document.getElementById('resultBanner2');
+
+            badge.textContent = 'WIN';
+            badge.style.backgroundColor = winColor;
+            badge.style.color = '#FFFFFF';
+            badge.className = 'w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs shrink-0 shadow-lg';
+
+            text.textContent = `2번 룰렛 최종 당첨!`;
+            chip.textContent = winnerLabel;
+            chip.style.color = winColor;
+
+            document.getElementById('removeWinner2Btn').disabled = false;
+
+            banner.classList.remove('animate-pop-in');
+            void banner.offsetWidth;
+            banner.classList.add('animate-pop-in');
+
+            addHistory('2번 룰렛', winnerLabel, winColor);
+
+            // 2번 룰렛 당첨 자동 삭제 옵션 처리
+            const excludeCheck2 = document.getElementById('excludeWinner2Checkbox');
+            if (excludeCheck2 && excludeCheck2.checked) {
+                setTimeout(() => {
+                    if (state.wheel2LastWinnerIndex >= 0 && state.wheel2Items[state.wheel2LastWinnerIndex] === winnerLabel) {
+                        state.wheel2Items.splice(state.wheel2LastWinnerIndex, 1);
+                        state.wheel2LastWinnerIndex = -1;
+                        document.getElementById('removeWinner2Btn').disabled = true;
+                        renderWheel2Tags();
+                        showToast(`'${winnerLabel}' 항목이 2번 룰렛에서 자동 삭제되었습니다.`, 'info');
+                    }
+                }, 450);
+            }
+        }
+
+        function addWheel2ItemsFromInput() {
+            if (state.wheel2Spinning) return;
+            const input = document.getElementById('wheel2Input');
+            const raw = input.value.trim();
+            if (!raw) {
+                showToast('추가할 수치나 항목을 입력해주세요.', 'warning');
+                return;
+            }
+
+            // 쉼표(,) 또는 줄바꿈으로 구분하여 일괄 추가 지원
+            const tokens = raw.split(/[,\n]+/).map(s => s.trim()).filter(Boolean);
+            if (tokens.length === 0) return;
+
+            state.wheel2Items.push(...tokens);
+            input.value = '';
+            state.wheel2LastWinnerIndex = -1;
+            document.getElementById('removeWinner2Btn').disabled = true;
+            renderWheel2Tags();
+            showToast(`${tokens.length}개 항목이 2번 룰렛에 추가되었습니다.`, 'success');
+        }
+
+        /**
+         * ============================================================================
+         * 6. 최근 추첨 히스토리 관리
+         * ============================================================================
+         */
+        function addHistory(source, label, color) {
+            const now = new Date();
+            const timeStr = now.toTimeString().slice(0, 8);
+            state.history.unshift({ source, label, color, time: timeStr });
+            if (state.history.length > 24) state.history.pop();
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const list = document.getElementById('historyList');
+            if (state.history.length === 0) {
+                list.innerHTML = `
+                    <div class="col-span-full py-6 text-center text-xs sm:text-sm text-slate-500 bg-slate-900/50 rounded-2xl border border-slate-800/80">
+                        아직 추첨 기록이 없습니다. 룰렛을 돌려 첫 결과를 뽑아보세요!
+                    </div>
+                `;
+                return;
+            }
+
+            list.innerHTML = state.history.map((item, index) => `
+                <div class="flex items-center justify-between gap-2.5 p-3 rounded-2xl bg-slate-900/85 border border-slate-800 hover:border-slate-700 transition">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${item.color}; box-shadow: 0 0 8px ${item.color}"></span>
+                        <div class="min-w-0">
+                            <span class="block text-[10px] font-bold text-slate-400">${item.source} • ${item.time}</span>
+                            <span class="block text-xs sm:text-sm font-black text-white truncate">${escapeHtml(item.label)}</span>
+                        </div>
+                    </div>
+                    <span class="text-[11px] font-bold text-slate-600 shrink-0">#${state.history.length - index}</span>
+                </div>
+            `).join('');
+        }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        /**
+         * ============================================================================
+         * 7. 이벤트 바인딩 및 초기화
+         * ============================================================================
+         */
+        function bindCategoryInputs() {
+            state.categories.forEach((cat, idx) => {
+                const activeEl = document.getElementById(`catActive${idx}`);
+                const prefixEl = document.getElementById(`catPrefix${idx}`);
+                const minEl = document.getElementById(`catMin${idx}`);
+                const maxEl = document.getElementById(`catMax${idx}`);
+
+                activeEl.addEventListener('change', () => {
+                    cat.active = activeEl.checked;
+                    buildWheel1Items();
+                });
+
+                prefixEl.addEventListener('input', () => {
+                    cat.prefix = prefixEl.value;
+                    buildWheel1Items();
+                });
+
+                const handleRangeChange = () => {
+                    let minVal = parseInt(minEl.value, 10);
+                    let maxVal = parseInt(maxEl.value, 10);
+                    if (isNaN(minVal)) minVal = 1;
+                    if (isNaN(maxVal)) maxVal = minVal;
+                    cat.min = minVal;
+                    cat.max = maxVal;
+                    buildWheel1Items();
+                };
+
+                minEl.addEventListener('input', handleRangeChange);
+                maxEl.addEventListener('input', handleRangeChange);
+            });
+        }
+
+        function resetAll() {
+            if (state.wheel1Spinning || state.wheel2Spinning) {
+                showToast('룰렛이 회전 중일 때는 초기화할 수 없습니다.', 'warning');
+                return;
+            }
+
+            state.categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
+            state.excludedWheel1.clear();
+            state.wheel1Angle = 0;
+            state.wheel1LastIndex = -1;
+            state.wheel1LastWinner = null;
+
+            state.categories.forEach((cat, idx) => {
+                document.getElementById(`catActive${idx}`).checked = cat.active;
+                document.getElementById(`catPrefix${idx}`).value = cat.prefix;
+                document.getElementById(`catMin${idx}`).value = cat.min;
+                document.getElementById(`catMax${idx}`).value = cat.max;
+            });
+
+            document.getElementById('excludeWinner1Checkbox').checked = true;
+            document.getElementById('manualExclude1Btn').disabled = true;
+            document.getElementById('resultBadge1').textContent = '?';
+            document.getElementById('resultBadge1').removeAttribute('style');
+            document.getElementById('resultBadge1').className = 'w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-slate-400 font-black text-sm shrink-0';
+            document.getElementById('resultText1').textContent = '원판을 클릭하거나 돌리기를 눌러주세요!';
+            document.getElementById('winnerChip1').textContent = '-';
+            document.getElementById('winnerChip1').removeAttribute('style');
+
+            state.wheel2Items = ['10', '20', '30', '40', '50', '60'];
+            state.wheel2Angle = 0;
+            state.wheel2LastIndex = -1;
+            state.wheel2LastWinnerIndex = -1;
+            document.getElementById('excludeWinner2Checkbox').checked = false;
+            document.getElementById('removeWinner2Btn').disabled = true;
+            document.getElementById('resultBadge2').textContent = '?';
+            document.getElementById('resultBadge2').removeAttribute('style');
+            document.getElementById('resultBadge2').className = 'w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-slate-400 font-black text-sm shrink-0';
+            document.getElementById('resultText2').textContent = '원하는 수치를 넣고 룰렛을 돌려주세요!';
+            document.getElementById('winnerChip2').textContent = '-';
+            document.getElementById('winnerChip2').removeAttribute('style');
+
+            state.history = [];
+            renderHistory();
+            buildWheel1Items();
+            renderWheel2Tags();
+            showToast('모든 룰렛 설정과 기록이 초기 상태로 복원되었습니다.', 'info');
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            bindCategoryInputs();
+            buildWheel1Items();
+            renderWheel2Tags();
+            renderHistory();
+
+            // 1번 룰렛 스핀 이벤트 (버튼 & 캔버스 클릭)
+            document.getElementById('centerSpinBtn1').addEventListener('click', spinWheel1);
+            document.getElementById('wheelCanvas1').addEventListener('click', spinWheel1);
+
+            // 1번 룰렛 수동 항목 삭제 버튼 (자동 삭제 해제 시 사용)
+            document.getElementById('manualExclude1Btn').addEventListener('click', () => {
+                if (state.wheel1Spinning || !state.wheel1LastWinner) return;
+                const w = state.wheel1LastWinner;
+                state.excludedWheel1.set(w.key, { label: w.label, color: w.color });
+                state.wheel1LastWinner = null;
+                document.getElementById('manualExclude1Btn').disabled = true;
+                buildWheel1Items();
+                showToast(`'${w.label}' 항목이 1번 룰렛에서 삭제되었습니다.`, 'info');
+            });
+
+            // 1번 룰렛 제외 목록 초기화
+            document.getElementById('restoreExcluded1Btn').addEventListener('click', () => {
+                if (state.excludedWheel1.size === 0) {
+                    showToast('삭제된 항목이 없습니다.', 'info');
+                    return;
+                }
+                state.excludedWheel1.clear();
+                buildWheel1Items();
+                showToast('삭제된 항목들이 모두 다시 룰렛에 복원되었습니다.', 'success');
+            });
+
+            // 2번 룰렛 스핀 이벤트 (버튼 & 캔버스 클릭)
+            document.getElementById('centerSpinBtn2').addEventListener('click', spinWheel2);
+            document.getElementById('wheelCanvas2').addEventListener('click', spinWheel2);
+
+            // 2번 룰렛 항목 추가
+            document.getElementById('wheel2AddBtn').addEventListener('click', addWheel2ItemsFromInput);
+            document.getElementById('wheel2Input').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addWheel2ItemsFromInput();
+                }
+            });
+
+            // 2번 룰렛 당첨 항목 제거
+            document.getElementById('removeWinner2Btn').addEventListener('click', () => {
+                if (state.wheel2Spinning || state.wheel2LastWinnerIndex < 0) return;
+                const removed = state.wheel2Items.splice(state.wheel2LastWinnerIndex, 1);
+                state.wheel2LastWinnerIndex = -1;
+                document.getElementById('removeWinner2Btn').disabled = true;
+                renderWheel2Tags();
+                if (removed.length > 0) {
+                    showToast(`'${removed[0]}' 항목이 2번 룰렛에서 제거되었습니다.`, 'info');
+                }
+            });
+
+            // 2번 룰렛 빠른 프리셋 버튼
+            document.querySelectorAll('.preset-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if (state.wheel2Spinning) return;
+                    const type = btn.getAttribute('data-preset');
+                    if (type === '1to5') state.wheel2Items = ['1', '2', '3', '4', '5'];
+                    else if (type === '1to10') state.wheel2Items = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
+                    else if (type === 'dice') state.wheel2Items = ['10', '20', '30', '40', '50', '60'];
+                    else if (type === 'ox') state.wheel2Items = ['통과', '꽝', '통과', '꽝', '한 번 더'];
+
+                    state.wheel2LastWinnerIndex = -1;
+                    document.getElementById('removeWinner2Btn').disabled = true;
+                    renderWheel2Tags();
+                    showToast('프리셋 항목으로 2번 룰렛이 채워졌습니다.', 'success');
+                });
+            });
+
+            // 2번 룰렛 목록 비우기
+            document.getElementById('clearWheel2Btn').addEventListener('click', () => {
+                if (state.wheel2Spinning) return;
+                state.wheel2Items = [];
+                state.wheel2LastWinnerIndex = -1;
+                document.getElementById('removeWinner2Btn').disabled = true;
+                renderWheel2Tags();
+            });
+
+            // 효과음 토글
+            document.getElementById('soundToggleBtn').addEventListener('click', () => {
+                sound.enabled = !sound.enabled;
+                document.getElementById('soundIconOn').classList.toggle('hidden', !sound.enabled);
+                document.getElementById('soundIconOff').classList.toggle('hidden', sound.enabled);
+                document.getElementById('soundLabel').textContent = sound.enabled ? '효과음 ON' : '효과음 OFF';
+                if (sound.enabled) sound.playTick(1.3);
+            });
+
+            // 기록 비우기 & 전체 초기화
+            document.getElementById('clearHistoryBtn').addEventListener('click', () => {
+                state.history = [];
+                renderHistory();
+            });
+            document.getElementById('resetAllBtn').addEventListener('click', resetAll);
+
+            // 반응형 리사이즈 대응
+            window.addEventListener('resize', () => {
+                drawWheel1();
+                drawWheel2();
+            });
+        });
+    </script>
+</body>
+</html>
