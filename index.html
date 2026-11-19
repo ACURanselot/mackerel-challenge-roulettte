@@ -611,73 +611,122 @@
 
             state.categories.forEach((cat) => {
                 if (!cat.active) return;
-                const start = Math.min(cat.min, cat.max);
-                const end = Math.max(cat.min, cat.max);
-                // 과도한 브라우저 부하 방지를 위해 카테고리당 최대 300개 제한
-                const safeEnd = Math.min(end, start + 299);
+                const rawMin = Number.isFinite(cat.min) ? cat.min : 1;
+                const rawMax = Number.isFinite(cat.max) ? cat.max : rawMin;
+                const start = Math.min(rawMin, rawMax);
+                const end = Math.max(rawMin, rawMax);
+                // 카테고리당 최대 1000개까지 생성 허용
+                const safeEnd = Math.min(end, start + 999);
                 const prefix = (cat.prefix || '').trim();
 
                 let localIdx = 0;
                 for (let n = start; n <= safeEnd; n++) {
                     totalBaseCount++;
-                    const label = `${prefix}${n}`;
-                    const uniqueKey = `${cat.id}:${label}`;
-                    if (!state.excludedWheel1.has(uniqueKey)) {
+                    const key = `${cat.id}_${n}`;
+                    if (!state.excludedWheel1.has(key)) {
                         items.push({
-                            key: uniqueKey,
-                            label: label,
+                            key,
+                            categoryId: cat.id,
                             categoryName: cat.name,
+                            label: `${prefix}${n}`,
                             color: localIdx % 2 === 0 ? cat.color : cat.altColor
                         });
-                        localIdx++;
                     }
+                    localIdx++;
                 }
             });
 
             state.wheel1Items = items;
             state.wheel1TotalBaseCount = totalBaseCount;
+
             document.getElementById('wheel1CountBadge').textContent = `남은 항목: ${items.length} / ${totalBaseCount}`;
-            document.getElementById('excludedCount1').textContent = `삭제됨: ${state.excludedWheel1.size}개`;
-            renderExcludedList1();
-            updateWheel1PointerInfo();
+            renderExcludedWheel1List();
             drawWheel1();
+            updateWheel1PointerInfo();
         }
 
-        function renderExcludedList1() {
+        function renderExcludedWheel1List() {
             const listEl = document.getElementById('excludedList1');
-            if (!listEl) return;
+            const countEl = document.getElementById('excludedCount1');
+            const size = state.excludedWheel1.size;
 
-            if (state.excludedWheel1.size === 0) {
+            countEl.textContent = `삭제됨: ${size}개`;
+
+            if (size === 0) {
                 listEl.classList.add('hidden');
                 listEl.innerHTML = '';
                 return;
             }
 
             listEl.classList.remove('hidden');
-            const chips = [];
-            state.excludedWheel1.forEach((info, key) => {
-                chips.push(`
-                    <button type="button" data-restore-key="${escapeHtml(key)}" title="클릭하여 다시 룰렛에 복원"
-                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800/90 hover:bg-slate-700 border border-slate-700 text-[11px] font-bold text-slate-300 line-through decoration-rose-400 transition">
-                        <span class="w-1.5 h-1.5 rounded-full" style="background-color: ${info.color}"></span>
-                        <span>${escapeHtml(info.label)}</span>
-                        <span class="text-emerald-400 no-underline ml-0.5">↺</span>
-                    </button>
-                `);
-            });
-            listEl.innerHTML = chips.join('');
+            listEl.innerHTML = Array.from(state.excludedWheel1.entries()).map(([key, info]) => `
+                <button type="button" data-restore-key="${escapeHtml(key)}" title="클릭하여 룰렛에 다시 복원" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-slate-300 border border-slate-700 transition">
+                    <span class="w-1.5 h-1.5 rounded-full" style="background-color: ${info.color}"></span>
+                    <span class="line-through text-slate-400">${escapeHtml(info.label)}</span>
+                    <span class="text-neonPink text-[10px] ml-0.5">+복원</span>
+                </button>
+            `).join('');
 
             listEl.querySelectorAll('[data-restore-key]').forEach(btn => {
                 btn.addEventListener('click', () => {
                     if (state.wheel1Spinning) return;
                     const key = btn.getAttribute('data-restore-key');
-                    const info = state.excludedWheel1.get(key);
                     state.excludedWheel1.delete(key);
                     buildWheel1Items();
-                    if (info) {
-                        showToast(`'${info.label}' 항목이 다시 룰렛에 복원되었습니다.`, 'success');
-                    }
                 });
+            });
+        }
+
+        function bindCategoryInputs() {
+            state.categories.forEach((cat, idx) => {
+                const activeEl = document.getElementById(`catActive${idx}`);
+                const prefixEl = document.getElementById(`catPrefix${idx}`);
+                const minEl = document.getElementById(`catMin${idx}`);
+                const maxEl = document.getElementById(`catMax${idx}`);
+
+                activeEl.addEventListener('change', () => {
+                    cat.active = activeEl.checked;
+                    buildWheel1Items();
+                });
+
+                prefixEl.addEventListener('input', () => {
+                    cat.prefix = prefixEl.value;
+                    buildWheel1Items();
+                });
+
+                const handleRangeChange = (finalize = false) => {
+                    const rawMinStr = minEl.value.trim();
+                    const rawMaxStr = maxEl.value.trim();
+
+                    // 타이핑 도중 빈 칸일 때는 즉시 강제 변환하지 않고 대기
+                    if (!finalize && (rawMinStr === '' || rawMaxStr === '')) {
+                        return;
+                    }
+
+                    let minVal = parseInt(rawMinStr, 10);
+                    let maxVal = parseInt(rawMaxStr, 10);
+
+                    if (isNaN(minVal)) minVal = 1;
+                    if (isNaN(maxVal)) maxVal = minVal;
+
+                    if (finalize) {
+                        minEl.value = minVal;
+                        maxEl.value = maxVal;
+                    }
+
+                    cat.min = minVal;
+                    cat.max = maxVal;
+                    buildWheel1Items();
+                };
+
+                minEl.addEventListener('input', () => handleRangeChange(false));
+                maxEl.addEventListener('input', () => handleRangeChange(false));
+                minEl.addEventListener('change', () => handleRangeChange(true));
+                maxEl.addEventListener('change', () => handleRangeChange(true));
+                minEl.addEventListener('blur', () => handleRangeChange(true));
+                maxEl.addEventListener('blur', () => handleRangeChange(true));
+                minEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleRangeChange(true); });
+                maxEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleRangeChange(true); });
             });
         }
 
@@ -1221,38 +1270,6 @@
          * 7. 이벤트 바인딩 및 초기화
          * ============================================================================
          */
-        function bindCategoryInputs() {
-            state.categories.forEach((cat, idx) => {
-                const activeEl = document.getElementById(`catActive${idx}`);
-                const prefixEl = document.getElementById(`catPrefix${idx}`);
-                const minEl = document.getElementById(`catMin${idx}`);
-                const maxEl = document.getElementById(`catMax${idx}`);
-
-                activeEl.addEventListener('change', () => {
-                    cat.active = activeEl.checked;
-                    buildWheel1Items();
-                });
-
-                prefixEl.addEventListener('input', () => {
-                    cat.prefix = prefixEl.value;
-                    buildWheel1Items();
-                });
-
-                const handleRangeChange = () => {
-                    let minVal = parseInt(minEl.value, 10);
-                    let maxVal = parseInt(maxEl.value, 10);
-                    if (isNaN(minVal)) minVal = 1;
-                    if (isNaN(maxVal)) maxVal = minVal;
-                    cat.min = minVal;
-                    cat.max = maxVal;
-                    buildWheel1Items();
-                };
-
-                minEl.addEventListener('input', handleRangeChange);
-                maxEl.addEventListener('input', handleRangeChange);
-            });
-        }
-
         function resetAll() {
             if (state.wheel1Spinning || state.wheel2Spinning) {
                 showToast('룰렛이 회전 중일 때는 초기화할 수 없습니다.', 'warning');
